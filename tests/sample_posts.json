@@ -1,0 +1,72 @@
+[
+  {
+    "text": "the sun sets low\nover quiet fields of gold\nwinter holds its breath\nand the world grows old",
+    "author_did": "did:plc:example1",
+    "created_at": "2026-01-15T10:30:00Z",
+    "langs": ["en"],
+    "label": "poetry"
+  },
+  {
+    "text": "Just had the best coffee at Blue Bottle ☕ highly recommend the new oat milk latte!",
+    "author_did": "did:plc:example2",
+    "created_at": "2026-01-15T11:00:00Z",
+    "langs": ["en"],
+    "label": "not_poetry"
+  },
+  {
+    "text": "I carry your heart\nI carry it in my heart\nI am never without it\nanywhere I go, you go",
+    "author_did": "did:plc:example3",
+    "created_at": "2026-01-15T11:30:00Z",
+    "langs": ["en"],
+    "label": "poetry"
+  },
+  {
+    "text": "Things I need from the store:\n- milk\n- eggs\n- bread\n- butter",
+    "author_did": "did:plc:example4",
+    "created_at": "2026-01-15T12:00:00Z",
+    "langs": ["en"],
+    "label": "not_poetry"
+  },
+  {
+    "text": "ok",
+    "author_did": "did:plc:example5",
+    "created_at": "2026-01-15T12:30:00Z",
+    "langs": ["en"],
+    "label": "not_poetry"
+  },
+  {
+    "text": "Hoy me desperté pensando en ti y no sé por qué",
+    "author_did": "did:plc:example6",
+    "created_at": "2026-01-15T13:00:00Z",
+    "langs": ["es"],
+    "label": "not_poetry"
+  },
+  {
+    "text": "between the cracks\nof the sidewalk\nlife pushes through—\ngreen, stubborn,\nbeautiful",
+    "author_did": "did:plc:example7",
+    "created_at": "2026-01-15T13:30:00Z",
+    "langs": ["en"],
+    "label": "poetry"
+  },
+  {
+    "text": "1. Wake up early\n2. Go for a run\n3. Eat a healthy breakfast\n4. Read for 30 minutes\n5. Start working",
+    "author_did": "did:plc:example8",
+    "created_at": "2026-01-15T14:00:00Z",
+    "langs": ["en"],
+    "label": "not_poetry"
+  },
+  {
+    "text": "Breaking: Major earthquake reported off the coast of Japan. Tsunami warnings issued for coastal areas. Stay safe everyone.",
+    "author_did": "did:plc:example9",
+    "created_at": "2026-01-15T14:30:00Z",
+    "langs": ["en"],
+    "label": "not_poetry"
+  },
+  {
+    "text": "roses are red\nviolets are blue\nI wrote this poem\njust for you",
+    "author_did": "did:plc:example10",
+    "created_at": "2026-01-15T15:00:00Z",
+    "langs": ["en"],
+    "label": "poetry"
+  }
+]
