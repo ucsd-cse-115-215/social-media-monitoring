@@ -32,16 +32,16 @@ async def stream_posts(
 
     while True:
         try:
-            async for ws in websockets.connect(url):
+            async with websockets.connect(url) as ws:
                 logger.info("Connected to Jetstream")
-                try:
-                    async for raw in ws:
-                        post = _parse_event(raw)
-                        if post is not None:
-                            yield post
-                except websockets.ConnectionClosed:
-                    logger.warning("Jetstream connection closed, reconnecting...")
-                    continue
+                async for raw in ws:
+                    post = _parse_event(raw)
+                    if post is not None:
+                        yield post
+        except websockets.ConnectionClosed:
+            logger.warning("Jetstream connection closed, reconnecting...")
+        except GeneratorExit:
+            return
         except Exception:
             logger.exception("Jetstream connection error, reconnecting...")
 

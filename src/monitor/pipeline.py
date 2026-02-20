@@ -26,7 +26,9 @@ class Pipeline:
         self.total_seen += 1
 
         for f in self.filters:
-            if not await f.matches(post):
+            passed = await f.matches(post)
+            f.log(post, passed)
+            if not passed:
                 self.stats[f.name]["rejected"] += 1
                 return False
             self.stats[f.name]["passed"] += 1
