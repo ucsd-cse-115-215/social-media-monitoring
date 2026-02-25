@@ -121,6 +121,8 @@ src/monitor/
 ├── source.py            # Bluesky Jetstream WebSocket client
 ├── pipeline.py          # Multi-stage filter chain with stats
 ├── output.py            # Rich console display
+├── label.py             # Interactive labeling tool
+├── eval.py              # LLM filter evaluation
 └── filters/
     ├── base.py          # Post dataclass + Filter ABC
     ├── basic.py         # Stage 1: language, length, non-empty

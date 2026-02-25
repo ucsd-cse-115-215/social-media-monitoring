@@ -25,6 +25,14 @@ from monitor.filters.llm import LLMFilter
 console = Console()
 
 DEFAULT_GOLD_PATH = Path("data/gold.jsonl")
+COSTS_PATH = Path("data/model_costs.json")
+
+
+def load_costs() -> dict[str, dict]:
+    if COSTS_PATH.exists():
+        with open(COSTS_PATH) as f:
+            return json.load(f)
+    return {}
 
 
 def load_gold(gold_path: Path) -> list[dict]:
@@ -57,6 +65,8 @@ async def evaluate(
     console.print(f"Gold set: {len(entries)} entries from {gold_path}\n")
 
     tp = fp = tn = fn = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
     false_positives: list[tuple[dict, dict]] = []
     false_negatives: list[tuple[dict, dict]] = []
 
@@ -71,6 +81,9 @@ async def evaluate(
         predicted = await llm.matches(post)
         actual = entry["is_poetry"]
         analysis = post.metadata.get("llm_analysis", {})
+        usage = post.metadata.get("usage", {})
+        total_input_tokens += usage.get("input_tokens", 0)
+        total_output_tokens += usage.get("output_tokens", 0)
 
         if predicted and actual:
             tp += 1
@@ -105,6 +118,29 @@ async def evaluate(
     metrics.add_row("Recall", f"{recall:.1%}")
     metrics.add_row("F1", f"{f1:.1%}")
     console.print(metrics)
+
+    # --- Cost ---
+    costs = load_costs()
+    model_cost = costs.get(model)
+
+    cost_table = Table(title="Cost", border_style="bold")
+    cost_table.add_column("Metric", style="cyan")
+    cost_table.add_column("Value", justify="right")
+    cost_table.add_row("Input tokens", f"{total_input_tokens:,}")
+    cost_table.add_row("Output tokens", f"{total_output_tokens:,}")
+
+    if model_cost:
+        input_cost = total_input_tokens / 1_000_000 * model_cost["input"]
+        output_cost = total_output_tokens / 1_000_000 * model_cost["output"]
+        total_cost = input_cost + output_cost
+        cost_table.add_row("Input cost", f"${input_cost:.4f}")
+        cost_table.add_row("Output cost", f"${output_cost:.4f}")
+        cost_table.add_row("Total cost", f"${total_cost:.4f}")
+        cost_table.add_row("Cost per post", f"${total_cost / max(len(entries), 1):.6f}")
+    else:
+        cost_table.add_row("Cost", f"[yellow]no pricing for {model} in {COSTS_PATH}[/]")
+
+    console.print(cost_table)
 
     # --- Disagreements ---
     if false_positives:

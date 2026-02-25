@@ -53,8 +53,13 @@ class LLMFilter(Filter):
             )
             result = json.loads(response.choices[0].message.content)
 
-            # Attach the LLM's analysis to the post for display later
+            # Attach the LLM's analysis and token usage to the post
             post.metadata["llm_analysis"] = result
+            if response.usage:
+                post.metadata["usage"] = {
+                    "input_tokens": response.usage.prompt_tokens,
+                    "output_tokens": response.usage.completion_tokens,
+                }
 
             return (
                 result.get("is_poetry", False)
