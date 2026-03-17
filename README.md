@@ -85,49 +85,65 @@ To tune the LLM filter, you need labeled data. The workflow:
 2. **Label them** — the labeling tool shows all LLM-positive posts and a random
    sample of negatives, and asks you to classify each one:
    ```bash
-   python -m monitor.label logs/llm.jsonl
+   python scripts/label.py logs/llm.jsonl
    ```
    Press `p` (poetry), `n` (not poetry), `s` (skip), or `q` (quit).
    Labels are appended to `data/gold.jsonl`. Already-labeled posts are skipped.
 
    To include more negatives for labeling (default is 20%):
    ```bash
-   python -m monitor.label logs/llm.jsonl --negative-sample-rate 0.5
+   python scripts/label.py logs/llm.jsonl --negative-sample-rate 0.5
    ```
 
 ### Evaluating the LLM Filter
 
-Run the gold set through the LLM filter and see precision/recall/F1:
+Run the gold set through the LLM filter and see precision/recall/F1 + cost:
 
 ```bash
-python -m monitor.eval
+python scripts/eval.py
 ```
 
-Compare different models or thresholds:
+Compare different models:
 
 ```bash
-python -m monitor.eval --model gpt-4o --threshold 0.5
-python -m monitor.eval --model gpt-4o-mini --threshold 0.9
+python scripts/eval.py --model gpt-4o
+python scripts/eval.py --model gpt-5-nano
 ```
 
-The eval shows every disagreement between the LLM and human labels,
-along with the LLM's confidence and reasoning — useful for improving the prompt.
+LLM predictions are cached in `data/eval_{model}.jsonl`, so you can re-run with
+different thresholds without calling the API again:
+
+```bash
+python scripts/eval.py --threshold 0.5
+```
+
+Delete the cache file to force a fresh run. For deeper analysis (threshold sweeps,
+PR curves, cost vs accuracy), open `scripts/analysis.py` as a VS Code interactive
+notebook.
 
 ## Project Structure
 
 ```
-src/monitor/
-├── main.py              # CLI entry point, wires everything together
-├── source.py            # Bluesky Jetstream WebSocket client
-├── pipeline.py          # Multi-stage filter chain with stats
-├── output.py            # Rich console display
-├── label.py             # Interactive labeling tool
-├── eval.py              # LLM filter evaluation
+src/monitor/                 # Core app
+├── main.py                  # CLI entry point
+├── source.py                # Bluesky Jetstream WebSocket client
+├── pipeline.py              # Multi-stage filter chain with stats
+├── output.py                # Rich console display
 └── filters/
-    ├── base.py          # Post dataclass + Filter ABC
-    ├── basic.py         # Stage 1: language, length, non-empty
-    ├── structural.py    # Stage 2: poetry shape heuristics
-    └── llm.py           # Stage 3: OpenAI classification
+    ├── base.py              # Post dataclass + Filter ABC
+    ├── basic.py             # Stage 1: language, length, non-empty
+    ├── structural.py        # Stage 2: poetry shape heuristics
+    └── llm.py               # Stage 3: OpenAI classification
+
+scripts/                     # Tooling
+├── eval.py                  # LLM filter evaluation (with result caching)
+├── label.py                 # Interactive labeling CLI
+└── analysis.py              # VS Code notebook for model comparison
+
+data/                        # Data files
+├── gold.jsonl               # Human-labeled evaluation set
+├── model_costs.json         # API pricing per model
+└── eval_*.jsonl             # Cached LLM predictions (per model)
 ```
 
 ## Customization

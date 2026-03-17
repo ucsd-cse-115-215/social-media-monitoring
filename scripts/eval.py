@@ -1,9 +1,9 @@
 """Evaluate the LLM filter against the gold set.
 
 Usage:
-    python -m monitor.eval                        # defaults
-    python -m monitor.eval --model gpt-4o         # try a different model
-    python -m monitor.eval --threshold 0.5        # lower confidence threshold
+    python scripts/eval.py                        # defaults
+    python scripts/eval.py --model gpt-4o         # try a different model
+    python scripts/eval.py --threshold 0.5        # lower confidence threshold
 
 LLM predictions are cached in data/eval_{model}.jsonl. If the file exists,
 cached results are reused and only new gold-set entries are sent to the LLM.

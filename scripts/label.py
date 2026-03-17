@@ -1,7 +1,7 @@
 """Interactive labeling tool for building the gold evaluation set.
 
 Usage:
-    python -m monitor.label logs/llm.jsonl
+    python scripts/label.py logs/llm.jsonl
 
 Reads posts from an LLM filter log, presents them for human labeling,
 and appends labeled entries to data/gold.jsonl.
