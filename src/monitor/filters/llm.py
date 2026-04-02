@@ -35,6 +35,8 @@ class LLMFilter(Filter):
         client: openai.AsyncOpenAI,
         model: str = "gpt-4o-mini",
         confidence_threshold: float = 0.85,
+        # model: str = "gpt-5.4",
+        # confidence_threshold: float = 0.5,
     ):
         self.client = client
         self.model = model

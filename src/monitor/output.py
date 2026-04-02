@@ -1,6 +1,7 @@
 """Rich console output for matched posts."""
 
 from rich.console import Console
+from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -10,9 +11,43 @@ from monitor.pipeline import Pipeline
 
 console = Console()
 
+# Live status line for rejected-post counter
+_live: Live | None = None
 
-def display_post(post: Post) -> None:
+
+def start_status() -> None:
+    """Start the live status line."""
+    global _live
+    _live = Live("", console=console, refresh_per_second=4)
+    _live.start()
+
+
+def stop_status() -> None:
+    """Stop the live status line."""
+    global _live
+    if _live:
+        _live.stop()
+        _live = None
+
+
+def _update_status(pipeline: Pipeline) -> None:
+    if _live is None:
+        return
+    s = pipeline.get_summary()
+    parts = [f"[dim]{s['total_seen']} seen"]
+    for name, st in s["stages"].items():
+        if st["rejected"]:
+            parts.append(f"{name}: -{st['rejected']}")
+    parts.append(f"({s['posts_per_second']}/s)")
+    _live.update(" | ".join(parts) + "[/]")
+
+
+def display_post(post: Post, pipeline: Pipeline | None = None) -> None:
     """Display a matched post with its LLM analysis."""
+    # Temporarily stop live display so the panel prints cleanly
+    if _live:
+        _live.stop()
+
     analysis = post.metadata.get("llm_analysis", {})
 
     # Build the panel content
@@ -39,6 +74,15 @@ def display_post(post: Post) -> None:
     if post.url:
         console.print(f"  [dim link={post.url}]{post.url}[/]")
     console.print()
+
+    # Restart live display
+    if _live:
+        _live.start(refresh=True)
+
+
+def display_rejected(pipeline: Pipeline) -> None:
+    """Update the live status line with current pipeline stats."""
+    _update_status(pipeline)
 
 
 def display_stats(pipeline: Pipeline) -> None:

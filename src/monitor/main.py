@@ -9,8 +9,8 @@ from pathlib import Path
 import openai
 from dotenv import load_dotenv
 
-from monitor.filters import BasicFilter, LLMFilter, StructuralFilter
-from monitor.output import console, display_post, display_stats
+from monitor.filters import BasicFilter, LLMFilter, ProfanityFilter, StructuralFilter
+from monitor.output import console, display_post, display_rejected, display_stats, start_status, stop_status
 from monitor.pipeline import Pipeline
 from monitor.source import stream_posts
 
@@ -40,6 +40,7 @@ async def run(args: argparse.Namespace) -> None:
     filters = [
         BasicFilter(min_length=20),
         StructuralFilter(min_lines=3),
+        ProfanityFilter(),
         LLMFilter(client),
     ]
 
@@ -69,13 +70,17 @@ async def run(args: argparse.Namespace) -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, handle_signal)
 
+    start_status()
     try:
         async for post in stream_posts():
             if stop.is_set():
                 break
             if await pipeline.process(post):
-                display_post(post)
+                display_post(post, pipeline)
+            else:
+                display_rejected(pipeline)
     finally:
+        stop_status()
         display_stats(pipeline)
 
 
