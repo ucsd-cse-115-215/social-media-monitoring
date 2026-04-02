@@ -95,7 +95,7 @@ for name, results in models.items():
 # %%
 # --- Threshold sweep (table) ---
 
-thresholds = np.arange(0.0, 1.01, 0.05)
+thresholds = np.arange(0.05, 1.01, 0.05)
 
 # Precompute sweep for all models
 sweep = {}
@@ -205,15 +205,15 @@ plt.show()
 
 if len(models) >= 2:
     model_names = list(models.keys())
-    a_name, b_name = model_names[0], model_names[1]
+    a_name, b_name = 'gpt-4o-mini', 'gpt-5.4' # model_names[0], model_names[1]
     a_results, b_results = models[a_name], models[b_name]
 
-    print(f"Disagreements: {a_name} vs {b_name} (threshold=0.7)\n")
+    print(f"Disagreements: {a_name} vs {b_name} (threshold=0.85)\n")
     for text, label in gold_by_text.items():
         a = a_results.get(text, {}).get("llm_analysis", {})
         b = b_results.get(text, {}).get("llm_analysis", {})
-        a_pred = a.get("is_poetry", False) and a.get("confidence", 0) >= 0.7
-        b_pred = b.get("is_poetry", False) and b.get("confidence", 0) >= 0.7
+        a_pred = a.get("is_poetry", False) and a.get("confidence", 0) >= 0.85
+        b_pred = b.get("is_poetry", False) and b.get("confidence", 0) >= 0.85
         if a_pred != b_pred:
             label_str = "POETRY" if label else "not poetry"
             a_str = f"yes ({a.get('confidence', '?')})" if a_pred else f"no ({a.get('confidence', '?')})"

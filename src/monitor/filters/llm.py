@@ -34,7 +34,7 @@ class LLMFilter(Filter):
         self,
         client: openai.AsyncOpenAI,
         model: str = "gpt-4o-mini",
-        confidence_threshold: float = 0.7,
+        confidence_threshold: float = 0.85,
     ):
         self.client = client
         self.model = model
@@ -49,7 +49,7 @@ class LLMFilter(Filter):
                     {"role": "user", "content": post.text},
                 ],
                 response_format={"type": "json_object"},
-                max_tokens=150,
+                # max_completion_tokens=150,
             )
             result = json.loads(response.choices[0].message.content)
 
