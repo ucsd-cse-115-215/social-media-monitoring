@@ -47,7 +47,8 @@ async def run(args: argparse.Namespace) -> None:
         BasicFilter(min_length=20),
         StructuralFilter(min_lines=3),
         ProfanityFilter(),
-        LLMFilter(client),
+        LLMFilter(client, model="gpt-5-mini", confidence_threshold=0.8, name="llm-mini"),
+        LLMFilter(client, model="gpt-5.4", confidence_threshold=0.8, name="llm"),
     ]
 
     # Set up per-filter logging

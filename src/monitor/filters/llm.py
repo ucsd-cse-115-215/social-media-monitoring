@@ -33,14 +33,14 @@ class LLMFilter(Filter):
     def __init__(
         self,
         client: openai.AsyncOpenAI,
-        model: str = "gpt-4o-mini",
-        confidence_threshold: float = 0.85,
-        # model: str = "gpt-5.4",
-        # confidence_threshold: float = 0.5,
+        model: str = "gpt-5.4",
+        confidence_threshold: float = 0.5,
+        name: str = "llm",
     ):
         self.client = client
         self.model = model
         self.confidence_threshold = confidence_threshold
+        self.name = name
 
     async def matches(self, post: Post) -> bool:
         try:
