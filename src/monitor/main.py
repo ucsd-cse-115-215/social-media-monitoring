@@ -29,6 +29,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Which stages to log (e.g. --log-stages structural llm). Default: all stages",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=10,
+        help="Number of concurrent worker tasks (default: 10)",
+    )
     return parser.parse_args()
 
 
@@ -55,11 +61,12 @@ async def run(args: argparse.Namespace) -> None:
         console.print(f"[dim]Logging enabled for: {', '.join(enabled)} → {args.log_dir}/[/]")
 
     pipeline = Pipeline(filters)
+    queue: asyncio.Queue = asyncio.Queue(maxsize=10_000)
 
     console.print("[bold]Social Media Monitor — Poetry Detector[/]")
-    console.print("Connecting to Bluesky firehose...\n")
+    console.print(f"Connecting to Bluesky firehose ({args.workers} workers)...\n")
 
-    # Print stats on Ctrl+C before exiting
+    # Graceful shutdown via Ctrl+C
     loop = asyncio.get_event_loop()
     stop = asyncio.Event()
 
@@ -70,16 +77,41 @@ async def run(args: argparse.Namespace) -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, handle_signal)
 
-    start_status()
-    try:
+    async def producer():
+        """Drain the websocket as fast as possible into the queue."""
         async for post in stream_posts():
             if stop.is_set():
-                break
-            if await pipeline.process(post):
-                display_post(post, pipeline)
-            else:
-                display_rejected(pipeline)
+                return
+            try:
+                queue.put_nowait(post)
+            except asyncio.QueueFull:
+                pass  # drop post rather than back-pressure the websocket
+
+    async def worker():
+        """Pull posts from the queue and run them through the pipeline."""
+        while True:
+            post = await queue.get()
+            try:
+                if await pipeline.process(post):
+                    display_post(post, pipeline, queue)
+                else:
+                    display_rejected(pipeline, queue)
+            finally:
+                queue.task_done()
+
+    start_status()
+    workers = [asyncio.create_task(worker()) for _ in range(args.workers)]
+    producer_task = asyncio.create_task(producer())
+    try:
+        # Wait until shutdown signal
+        await stop.wait()
+        # Cancel producer so we stop reading from the websocket
+        producer_task.cancel()
+        # Let workers finish what's already in the queue
+        await queue.join()
     finally:
+        for w in workers:
+            w.cancel()
         stop_status()
         display_stats(pipeline)
 

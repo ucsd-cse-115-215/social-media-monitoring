@@ -1,5 +1,7 @@
 """Rich console output for matched posts."""
 
+import asyncio
+
 from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
@@ -30,7 +32,7 @@ def stop_status() -> None:
         _live = None
 
 
-def _update_status(pipeline: Pipeline) -> None:
+def _update_status(pipeline: Pipeline, queue: asyncio.Queue | None = None) -> None:
     if _live is None:
         return
     s = pipeline.get_summary()
@@ -39,10 +41,12 @@ def _update_status(pipeline: Pipeline) -> None:
         if st["rejected"]:
             parts.append(f"{name}: -{st['rejected']}")
     parts.append(f"({s['posts_per_second']}/s)")
+    if queue is not None:
+        parts.append(f"queue: {queue.qsize()}")
     _live.update(" | ".join(parts) + "[/]")
 
 
-def display_post(post: Post, pipeline: Pipeline | None = None) -> None:
+def display_post(post: Post, pipeline: Pipeline | None = None, queue: asyncio.Queue | None = None) -> None:
     """Display a matched post with its LLM analysis."""
     # Temporarily stop live display so the panel prints cleanly
     if _live:
@@ -80,9 +84,9 @@ def display_post(post: Post, pipeline: Pipeline | None = None) -> None:
         _live.start(refresh=True)
 
 
-def display_rejected(pipeline: Pipeline) -> None:
+def display_rejected(pipeline: Pipeline, queue: asyncio.Queue | None = None) -> None:
     """Update the live status line with current pipeline stats."""
-    _update_status(pipeline)
+    _update_status(pipeline, queue)
 
 
 def display_stats(pipeline: Pipeline) -> None:
