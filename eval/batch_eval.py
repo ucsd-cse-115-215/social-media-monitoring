@@ -31,6 +31,33 @@ Respond with JSON:
 }
 """
 
+# Chain-of-thought variant: justification comes before the boolean decision,
+# forcing the model to reason before committing to an answer.
+COT_PROMPT = """\
+You are a poetry detector. Given a social media post, determine whether it
+contains an original poem (not just a quote or song lyrics).
+
+Think step-by-step, then respond with JSON:
+{
+  "justification": "your reasoning about whether this is an original poem",
+  "is_poetry": true/false,
+  "confidence": 0.0-1.0
+}
+"""
+
+# Reasoning-effort variant: no explanation needed — the model's internal
+# reasoning (via reasoning_effort) replaces the explanation field.
+REASONING_PROMPT = """\
+You are a poetry detector. Given a social media post, determine whether it
+contains an original poem (not just a quote or song lyrics).
+
+Respond with JSON:
+{
+  "is_poetry": true/false,
+  "confidence": 0.0-1.0
+}
+"""
+
 
 def load_gold() -> list[dict]:
     entries = []
@@ -54,13 +81,23 @@ def save_batch_meta(meta: dict):
         json.dump(meta, f, indent=2)
 
 
-def submit(models: list[str]):
+def submit(models: list[str], tag: str | None = None,
+           reasoning_effort: str | None = None, cot: bool = False):
     client = openai.OpenAI()
     gold = load_gold()
     meta = load_batch_meta()
 
+    # Pick the right prompt variant
+    if reasoning_effort:
+        prompt = REASONING_PROMPT
+    elif cot:
+        prompt = COT_PROMPT
+    else:
+        prompt = SYSTEM_PROMPT
+
     for model in models:
-        results_path = Path(f"data/eval_{model}.jsonl")
+        label = tag or model
+        results_path = Path(f"data/eval_{label}.jsonl")
         if results_path.exists():
             # Load existing cached texts to skip them
             cached_texts = set()
@@ -71,27 +108,30 @@ def submit(models: list[str]):
                         cached_texts.add(json.loads(line)["text"])
             entries = [e for e in gold if e["text"] not in cached_texts]
             if not entries:
-                print(f"  {model}: all {len(gold)} entries already cached, skipping")
+                print(f"  {label}: all {len(gold)} entries already cached, skipping")
                 continue
-            print(f"  {model}: {len(cached_texts)} cached, submitting {len(entries)} new entries")
+            print(f"  {label}: {len(cached_texts)} cached, submitting {len(entries)} new entries")
         else:
             entries = gold
 
         # Build batch request JSONL
         requests = []
         for i, entry in enumerate(entries):
+            body = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": entry["text"]},
+                ],
+                "response_format": {"type": "json_object"},
+            }
+            if reasoning_effort:
+                body["reasoning_effort"] = reasoning_effort
             requests.append({
                 "custom_id": f"gold-{i}",
                 "method": "POST",
                 "url": "/v1/chat/completions",
-                "body": {
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": entry["text"]},
-                    ],
-                    "response_format": {"type": "json_object"},
-                },
+                "body": body,
             })
 
         # Write to temp file and upload
@@ -102,19 +142,19 @@ def submit(models: list[str]):
                 tmp.write(json.dumps(req) + "\n")
             tmp_path = tmp.name
 
-        print(f"Uploading batch file for {model} ({len(requests)} requests)...")
+        print(f"Uploading batch file for {label} ({len(requests)} requests)...")
         with open(tmp_path, "rb") as f:
             batch_file = client.files.create(file=f, purpose="batch")
 
-        print(f"Submitting batch for {model}...")
+        print(f"Submitting batch for {label}...")
         batch = client.batches.create(
             input_file_id=batch_file.id,
             endpoint="/v1/chat/completions",
             completion_window="24h",
-            metadata={"model": model, "description": f"eval {model} on gold set"},
+            metadata={"model": model, "description": f"eval {label} on gold set"},
         )
 
-        meta[model] = {
+        meta[label] = {
             "batch_id": batch.id,
             "input_file_id": batch_file.id,
             "status": batch.status,
@@ -156,23 +196,23 @@ def download():
         print("No batch jobs found.")
         return
 
-    for model, info in meta.items():
+    for label, info in meta.items():
         batch = client.batches.retrieve(info["batch_id"])
         info["status"] = batch.status
 
         if batch.status != "completed":
-            print(f"  {model}: not ready yet ({batch.status})")
+            print(f"  {label}: not ready yet ({batch.status})")
             continue
 
         if not batch.output_file_id:
-            print(f"  {model}: completed but no output file?")
+            print(f"  {label}: completed but no output file?")
             continue
 
-        print(f"  {model}: downloading results...")
+        print(f"  {label}: downloading results...")
         content = client.files.content(batch.output_file_id).text
         texts = info["texts"]
 
-        results_path = Path(f"data/eval_{model}.jsonl")
+        results_path = Path(f"data/eval_{label}.jsonl")
         with open(results_path, "a") as out:
             for line in content.strip().split("\n"):
                 resp = json.loads(line)
@@ -205,6 +245,11 @@ def main():
 
     p_submit = sub.add_parser("submit", help="Submit batch jobs")
     p_submit.add_argument("--model", nargs="+", required=True, help="Models to evaluate")
+    p_submit.add_argument("--tag", help="Override output filename (e.g. eval_{tag}.jsonl)")
+    p_submit.add_argument("--reasoning-effort", choices=["low", "medium", "high"],
+                          help="Set reasoning effort (uses simplified prompt without explanation)")
+    p_submit.add_argument("--cot", action="store_true",
+                          help="Use chain-of-thought prompt (justification before decision)")
 
     sub.add_parser("status", help="Check batch job status")
     sub.add_parser("download", help="Download completed results")
@@ -212,7 +257,8 @@ def main():
     args = parser.parse_args()
 
     if args.command == "submit":
-        submit(args.model)
+        submit(args.model, tag=args.tag,
+               reasoning_effort=args.reasoning_effort, cot=args.cot)
     elif args.command == "status":
         status()
     elif args.command == "download":

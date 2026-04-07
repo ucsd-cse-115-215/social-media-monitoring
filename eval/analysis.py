@@ -74,8 +74,24 @@ def compute_metrics(results_by_text, threshold):
             "precision": precision, "recall": recall, "f1": f1}
 
 
+def _lookup_pricing(model_name):
+    """Look up pricing, falling back to the base model name.
+
+    e.g. 'gpt-5.4-reasoning-medium' → try 'gpt-5.4-reasoning-medium',
+    then 'gpt-5.4-reasoning', then 'gpt-5.4'.
+    """
+    if model_name in costs_data:
+        return costs_data[model_name]
+    parts = model_name.split("-")
+    for i in range(len(parts) - 1, 0, -1):
+        prefix = "-".join(parts[:i])
+        if prefix in costs_data:
+            return costs_data[prefix]
+    return None
+
+
 def total_cost(model_name, results_by_text):
-    pricing = costs_data.get(model_name)
+    pricing = _lookup_pricing(model_name)
     if not pricing:
         return None
     input_tok = sum(r.get("usage", {}).get("input_tokens", 0) for r in results_by_text.values())
